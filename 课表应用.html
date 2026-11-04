@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学生课表应用 - 放假调休规则</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f7f8fa; color: #333; }
+.container { max-width: 1400px; margin: 0 auto; padding: 16px; }
+.header { background: #4a6cf7; color: #fff; padding: 16px 24px; border-radius: 10px; margin-bottom: 16px; }
+.header h1 { font-size: 22px; font-weight: 600; }
+.header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+.layout { display: flex; gap: 16px; }
+.sidebar { width: 300px; flex-shrink: 0; }
+.main { flex: 1; min-width: 0; }
+.panel { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.panel h3 { font-size: 15px; color: #333; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #f0f0f0; display: flex; align-items: center; gap: 6px; }
+.panel h3 .icon { font-size: 18px; }
+.upload-btn { display: block; width: 100%; padding: 12px; background: #f5f7fa; border: 2px dashed #d9d9d9; border-radius: 8px; text-align: center; cursor: pointer; transition: all 0.2s; color: #666; font-size: 13px; }
+.upload-btn:hover { border-color: #667eea; background: #f0f4ff; color: #667eea; }
+.upload-btn input { display: none; }
+.file-info { margin-top: 8px; font-size: 12px; color: #52c41a; word-break: break-all; }
+.file-info.error { color: #ff4d4f; }
+.btn { display: inline-block; padding: 8px 16px; background: #667eea; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; transition: background 0.2s; }
+.btn:hover { background: #5568d3; }
+.btn.secondary { background: #f0f0f0; color: #333; }
+.btn.secondary:hover { background: #e0e0e0; }
+.switch-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.switch-row label { font-size: 13px; color: #555; }
+.switch { position: relative; width: 44px; height: 22px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 22px; transition: 0.3s; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s; }
+.switch input:checked + .slider { background: #667eea; }
+.switch input:checked + .slider:before { transform: translateX(22px); }
+.week-selector { display: flex; align-items: center; gap: 8px; }
+.week-selector input[type=range] { flex: 1; }
+.week-label { font-size: 13px; font-weight: 600; color: #667eea; min-width: 60px; text-align: center; }
+textarea { width: 100%; min-height: 100px; padding: 8px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 12px; font-family: inherit; resize: vertical; }
+.ocr-status { margin-top: 8px; font-size: 12px; color: #888; }
+.ocr-status.success { color: #52c41a; }
+.ocr-status.error { color: #ff4d4f; }
+table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); table-layout: fixed; }
+th, td { border: 1px solid #e8e8e8; padding: 6px; text-align: center; vertical-align: middle; }
+th { background: #4a6cf7; color: #fff; font-weight: 600; font-size: 13px; padding: 10px 4px; overflow: hidden; }
+th.section-col { width: 80px; background: #3b5de0; }
+td { height: 76px; overflow: hidden; }
+td.section-cell { background: #fafafa; font-weight: 600; color: #555; font-size: 12px; width: 80px; }
+td.holiday { background: #fff1f0; }
+td.swap { background: #fffbe6; }
+.course-cell { padding: 4px 6px; border-radius: 6px; font-size: 12px; line-height: 1.4; height: 100%; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.course-name { font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.course-meta { font-size: 11px; color: #666; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.holiday-tag { color: #ff4d4f; font-weight: 600; font-size: 14px; }
+.swap-tag { color: #faad14; font-size: 11px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.error-list { margin-top: 8px; font-size: 11px; color: #ff4d4f; max-height: 120px; overflow-y: auto; text-align: left; }
+.error-list div { padding: 2px 0; border-bottom: 1px dashed #ffe1e0; }
+.empty-cell { color: #d9d9d9; font-size: 11px; }
+.section-time { font-size: 10px; color: #999; font-weight: normal; }
+.status-bar { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+.status-item { font-size: 12px; color: #666; display: flex; align-items: center; gap: 4px; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+.legend-item { font-size: 12px; color: #666; display: flex; align-items: center; gap: 4px; }
+.legend-box { width: 14px; height: 14px; border-radius: 3px; }
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+  .sidebar { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>📅 学生课表应用</h1>
+    <p>支持上传课表 JSON / 选课 CSV、上传调休通知截图自动识别规则，动态渲染放假/调休后的课表</p>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="panel">
+        <h3><span class="icon">📚</span>课表数据</h3>
+        <label class="upload-btn" id="coursesUploadLabel">
+          点击上传 courses.json 或 选课导出.csv
+          <input type="file" id="coursesUpload" accept=".json,.csv,application/json,text/csv">
+        </label>
+        <div class="file-info" id="coursesInfo">未上传</div>
+        <div class="error-list" id="csvErrors"></div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="icon">🏖️</span>调休规则</h3>
+        <label class="upload-btn" id="imageUploadLabel">
+          点击上传调休通知截图
+          <input type="file" id="imageUpload" accept="image/*">
+        </label>
+        <div class="ocr-status" id="ocrStatus"></div>
+        <div style="margin-top:12px;">
+          <div style="font-size:12px;color:#888;margin-bottom:4px;">或手动粘贴通知文本：</div>
+          <textarea id="noticeText" placeholder="粘贴放假调休通知文本..."></textarea>
+          <button class="btn" style="margin-top:8px;width:100%;" onclick="parseNoticeFromText()">解析文本规则</button>
+        </div>
+        <div class="file-info" id="rulesInfo">未设置规则</div>
+      </div>
+
+      <div class="panel">
+        <h3><span class="icon">⚙️</span>显示设置</h3>
+        <div class="switch-row">
+          <label>应用放假/调休规则</label>
+          <label class="switch">
+            <input type="checkbox" id="applyRules" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="switch-row">
+          <label>开学日期</label>
+          <input type="date" id="semesterStart" value="2026-09-07" style="padding:4px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;">
+        </div>
+        <div class="week-selector" style="margin-top:12px;">
+          <span style="font-size:13px;color:#555;">第</span>
+          <input type="range" id="weekSlider" min="1" max="20" value="1">
+          <span class="week-label" id="weekLabel">1 周</span>
+        </div>
+        <button class="btn secondary" style="margin-top:12px;width:100%;" onclick="resetAll()">重置全部</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="panel">
+        <div class="status-bar">
+          <div class="status-item"><span class="status-dot" style="background:#667eea;"></span>当前：第 <b id="curWeek">1</b> 周</div>
+          <div class="status-item" id="dateRange"></div>
+          <div class="status-item" id="coursesCount"></div>
+          <div class="status-item" id="rulesStatus"></div>
+        </div>
+        <div id="timetableContainer"></div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-box" style="background:#fff1f0;border:1px solid #ffccc7;"></span>放假</div>
+          <div class="legend-item"><span class="legend-box" style="background:#fffbe6;border:1px solid #ffe58f;"></span>调休</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== 常量 ====================
+const WEEKDAY_CN = {1:"星期一",2:"星期二",3:"星期三",4:"星期四",5:"星期五",6:"星期六",7:"星期日"};
+const CN_TO_WEEKDAY = {};
+for (const [k,v] of Object.entries(WEEKDAY_CN)) CN_TO_WEEKDAY[v] = parseInt(k);
+Object.assign(CN_TO_WEEKDAY, {
+  "周一":1,"周二":2,"周三":3,"周四":4,"周五":5,"周六":6,"周日":7,
+  "周天":7,"星期日":7,"星期天":7,
+  "礼拜一":1,"礼拜二":2,"礼拜三":3,"礼拜四":4,"礼拜五":5,"礼拜六":6,"礼拜天":7,"礼拜日":7
+});
+const DAYS = [1,2,3,4,5,6,7];
+const COLOR_POOL = ["#dbeafe","#dcfce7","#fef9c3","#fce7f3","#ede9fe","#ffedd5","#cffafe","#fee2e2"];
+
+// ==================== 状态 ====================
+let courses = [];
+let rules = { holiday_dates: [], workday_adjust: {}, course_adjust: [] };
+let colorMap = {};
+
+// ==================== 工具函数 ====================
+function parseWeekRange(wr) {
+  const weeks = new Set();
+  if (!wr) return weeks;
+  for (const part of String(wr).split(",")) {
+    const p = part.trim();
+    if (!p) continue;
+    if (p.includes("-")) {
+      const [a,b] = p.split("-").map(x=>parseInt(x));
+      if (!isNaN(a) && !isNaN(b)) for (let i=a;i<=b;i++) weeks.add(i);
+    } else {
+      const n = parseInt(p);
+      if (!isNaN(n)) weeks.add(n);
+    }
+  }
+  return weeks;
+}
+
+function weekDates(semesterStart, weekNo) {
+  const result = {};
+  const monday = new Date(semesterStart);
+  monday.setDate(monday.getDate() + (weekNo-1)*7);
+  for (let d=1; d<=7; d++) {
+    const dt = new Date(monday);
+    dt.setDate(dt.getDate() + d - 1);
+    result[d] = dt;
+  }
+  return result;
+}
+
+function fmtDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
+function dayStatus(date, rulesObj, applyRules) {
+  if (!applyRules) {
+    const wd = date.getDay() === 0 ? 7 : date.getDay();
+    return {status:"normal", display_weekday:wd, note:""};
+  }
+  const ds = fmtDate(date);
+  const holidays = new Set(rulesObj.holiday_dates || []);
+  const swaps = rulesObj.workday_adjust || {};
+  if (holidays.has(ds)) return {status:"holiday", display_weekday: date.getDay()===0?7:date.getDay(), note:"放假"};
+  if (swaps[ds]) {
+    const target = CN_TO_WEEKDAY[swaps[ds]];
+    if (target) return {status:"swap", display_weekday:target, note:`调休→按${WEEKDAY_CN[target]}上课`};
+  }
+  const wd = date.getDay() === 0 ? 7 : date.getDay();
+  return {status:"normal", display_weekday:wd, note:""};
+}
+
+function coursesOfWeekday(coursesList, weekday, weekNo) {
+  const out = [];
+  for (const c of coursesList) {
+    if (parseInt(c.weekday) !== weekday) continue;
+    if (parseWeekRange(c.week_range).has(weekNo)) out.push(c);
+  }
+  return out;
+}
+
+function buildGrid(coursesList, rulesObj, semesterStart, weekNo, applyRules) {
+  const dates = weekDates(semesterStart, weekNo);
+  const grid = {};
+  for (const wd of DAYS) {
+    const date = dates[wd];
+    const stt = dayStatus(date, rulesObj, applyRules);
+    const cells = {};
+    if (stt.status !== "holiday") {
+      for (const c of coursesOfWeekday(coursesList, stt.display_weekday, weekNo)) {
+        cells[parseInt(c.start_section)] = c;
+      }
+    }
+    grid[wd] = {date, status:stt.status, display_weekday:stt.display_weekday, note:stt.note, cells};
+  }
+  return grid;
+}
+
+// 注：通知文本的规则解析统一由后端 /api/parse_rules（李涵睿模块）完成，前端不再重复实现
+
+// ==================== 颜色分配 ====================
+function assignColors(coursesList) {
+  colorMap = {};
+  let idx = 0;
+  for (const c of coursesList) {
+    if (!colorMap[c.course_name]) {
+      colorMap[c.course_name] = COLOR_POOL[idx % COLOR_POOL.length];
+      idx++;
+    }
+  }
+}
+
+function getColor(courseName) {
+  if (!colorMap[courseName]) {
+    colorMap[courseName] = COLOR_POOL[Object.keys(colorMap).length % COLOR_POOL.length];
+  }
+  return colorMap[courseName];
+}
+
+// ==================== 渲染 ====================
+function renderTimetable() {
+  const weekNo = parseInt(document.getElementById("weekSlider").value);
+  const applyRules = document.getElementById("applyRules").checked;
+  const startStr = document.getElementById("semesterStart").value;
+  const semesterStart = startStr ? new Date(startStr) : new Date(2026, 8, 7);
+
+  document.getElementById("curWeek").textContent = weekNo;
+  document.getElementById("weekLabel").textContent = `${weekNo} 周`;
+
+  const dates = weekDates(semesterStart, weekNo);
+  const dateRange = `${fmtDate(dates[1]).slice(5)} ~ ${fmtDate(dates[7]).slice(5)}`;
+  document.getElementById("dateRange").innerHTML = `<span class="status-dot" style="background:#52c41a;"></span>${dateRange}`;
+  document.getElementById("coursesCount").innerHTML = courses.length ? `<span class="status-dot" style="background:#667eea;"></span>${courses.length} 门课` : "";
+  document.getElementById("rulesStatus").innerHTML = (rules.holiday_dates.length > 0 || Object.keys(rules.workday_adjust).length > 0)
+    ? `<span class="status-dot" style="background:#faad14;"></span>放假${rules.holiday_dates.length}天 / 调休${Object.keys(rules.workday_adjust).length}天`
+    : "";
+
+  if (courses.length === 0) {
+    document.getElementById("timetableContainer").innerHTML = '<div style="text-align:center;padding:60px;color:#999;">请先上传 courses.json 或 选课导出.csv</div>';
+    return;
+  }
+
+  assignColors(courses);
+  const grid = buildGrid(courses, rules, semesterStart, weekNo, applyRules);
+
+  let html = '<table><thead><tr>';
+  html += '<th class="section-col">节次</th>';
+  for (const wd of DAYS) {
+    const g = grid[wd];
+    const dateStr = fmtDate(g.date).slice(5);
+    const tag = g.status === "holiday" ? " 🏖️" : g.status === "swap" ? " 🔁" : "";
+    html += `<th>${WEEKDAY_CN[wd]}<br><span style="font-size:11px;font-weight:normal;opacity:0.8;">${dateStr}${tag}</span></th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  const sectionLabels = [
+    [1,"上午1-2","08:00-09:45"],
+    [3,"上午3-4","10:15-12:00"],
+    [5,"下午5-6","14:00-15:45"],
+    [7,"下午7-8","16:15-18:00"],
+    [9,"晚上9-10","18:45-20:30"],
+    [11,"晚上11","20:35-21:25"]
+  ];
+
+  for (const [sec, label, time] of sectionLabels) {
+    html += `<tr><td class="section-cell">${label}<br><span class="section-time">${time}</span></td>`;
+    for (const wd of DAYS) {
+      const g = grid[wd];
+      const cellClass = g.status === "holiday" ? "holiday" : g.status === "swap" ? "swap" : "";
+      html += `<td class="${cellClass}">`;
+      if (g.status === "holiday") {
+        html += '<div class="holiday-tag">放假</div>';
+      } else {
+        const c = g.cells[sec];
+        if (c) {
+          const bg = getColor(c.course_name);
+          html += `<div class="course-cell" style="background:${bg};">`;
+          html += `<div class="course-name">${c.course_name}</div>`;
+          html += `<div class="course-meta">${c.week_range}周 | ${c.classroom || ""}</div>`;
+          html += `</div>`;
+        } else {
+          html += '<div class="empty-cell">—</div>';
+        }
+      }
+      if (g.status === "swap" && g.note) {
+        html += `<div class="swap-tag">${g.note}</div>`;
+      }
+      html += '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+
+  document.getElementById("timetableContainer").innerHTML = html;
+}
+
+// ==================== 文件上传 ====================
+document.getElementById("coursesUpload").addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  // CSV 走后端校验导入；JSON 直接前端解析
+  if (file.name.toLowerCase().endsWith(".csv")) { importCsv(file); return; }
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      let data = JSON.parse(ev.target.result);
+      if (data && typeof data === "object" && !Array.isArray(data) && data.courses) {
+        data = data.courses;
+      }
+      if (!Array.isArray(data)) throw new Error("格式错误");
+      courses = data;
+      document.getElementById("coursesInfo").textContent = `已加载 ${courses.length} 门课：${file.name}`;
+      document.getElementById("coursesInfo").className = "file-info";
+      document.getElementById("csvErrors").innerHTML = "";
+      renderTimetable();
+    } catch (err) {
+      document.getElementById("coursesInfo").textContent = "解析失败：" + err.message;
+      document.getElementById("coursesInfo").className = "file-info error";
+    }
+  };
+  reader.readAsText(file, "utf-8");
+});
+
+// ==================== Python 后端 API 调用 ====================
+
+// 上传 CSV，走后端校验，返回标准课程数组
+async function importCsv(file) {
+  const info = document.getElementById("coursesInfo");
+  const errBox = document.getElementById("csvErrors");
+  errBox.innerHTML = "";
+  info.textContent = "正在上传 CSV 到后端校验...";
+  info.className = "file-info";
+  const formData = new FormData();
+  formData.append("file", file);
+  try {
+    const resp = await fetch("/api/import_csv", { method: "POST", body: formData });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || ("服务错误 " + resp.status));
+    courses = data.courses || [];
+    info.textContent = `已加载 ${courses.length} 门课（${file.name}）`;
+    if (data.error_count > 0) {
+      info.textContent += `，其中 ${data.error_count} 行校验失败`;
+      errBox.innerHTML = data.errors.map(e => `<div>第${e.row}行：${e.error}</div>`).join("");
+    }
+    info.className = "file-info";
+    renderTimetable();
+  } catch (err) {
+    info.textContent = "CSV 导入失败：" + err.message + "（请确认已通过 python app.py 启动服务）";
+    info.className = "file-info error";
+  }
+}
+
+// 上传调休通知截图：OCR 识别 + 规则解析一站式（陈婧华 OCR + 李涵睿规则模块）
+document.getElementById("imageUpload").addEventListener("change", async function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById("ocrStatus").textContent = "正在上传图片到 OCR 服务...（首次使用需下载识别库）";
+  document.getElementById("ocrStatus").className = "ocr-status";
+
+  const formData = new FormData();
+  formData.append("image", file);
+
+  try {
+    const resp = await fetch("/api/ocr_and_parse", { method: "POST", body: formData });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || "服务错误 " + resp.status);
+    }
+    const data = await resp.json();
+    const text = data.text || "";
+    const parsed = data.rules || {};
+
+    document.getElementById("noticeText").value = text;
+    rules = parsed;
+    const info = `放假${parsed.holiday_dates?.length || 0}天，调休${Object.keys(parsed.workday_adjust || {}).length}天`;
+    document.getElementById("ocrStatus").textContent = `✅ OCR识别（置信度 ${data.confidence ?? "--"}%）+ 规则解析：${info}`;
+    document.getElementById("ocrStatus").className = "ocr-status success";
+    document.getElementById("rulesInfo").textContent = `已应用规则：${info}`;
+    document.getElementById("rulesInfo").className = "file-info";
+    renderTimetable();
+  } catch (err) {
+    document.getElementById("ocrStatus").textContent = `⚠️ 后端不可用（${err.message}），请运行 python app.py 后刷新页面`;
+    document.getElementById("ocrStatus").className = "ocr-status error";
+  }
+});
+
+// 手动粘贴通知文本，由后端解析规则
+async function parseNoticeFromText() {
+  const text = document.getElementById("noticeText").value;
+  if (!text.trim()) {
+    document.getElementById("rulesInfo").textContent = "请先粘贴通知文本";
+    document.getElementById("rulesInfo").className = "file-info error";
+    return;
+  }
+  try {
+    const resp = await fetch("/api/parse_rules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
+    });
+    if (!resp.ok) throw new Error("服务错误 " + resp.status);
+    const parsed = await resp.json();
+    rules = parsed;
+    const info = `放假${parsed.holiday_dates?.length || 0}天，调休${Object.keys(parsed.workday_adjust || {}).length}天`;
+    document.getElementById("rulesInfo").textContent = `✅ 规则解析：${info}`;
+    document.getElementById("rulesInfo").className = "file-info";
+    renderTimetable();
+  } catch (err) {
+    document.getElementById("rulesInfo").textContent = `⚠️ 后端不可用（${err.message}），请运行 python app.py 后刷新页面`;
+    document.getElementById("rulesInfo").className = "file-info error";
+  }
+}
+
+// ==================== 交互 ====================
+document.getElementById("weekSlider").addEventListener("input", renderTimetable);
+document.getElementById("applyRules").addEventListener("change", renderTimetable);
+document.getElementById("semesterStart").addEventListener("change", renderTimetable);
+
+function resetAll() {
+  courses = [];
+  rules = { holiday_dates: [], workday_adjust: {}, course_adjust: [] };
+  document.getElementById("coursesInfo").textContent = "未上传";
+  document.getElementById("csvErrors").innerHTML = "";
+  document.getElementById("rulesInfo").textContent = "未设置规则";
+  document.getElementById("noticeText").value = "";
+  document.getElementById("ocrStatus").textContent = "";
+  document.getElementById("coursesUpload").value = "";
+  document.getElementById("imageUpload").value = "";
+  document.getElementById("weekSlider").value = 1;
+  renderTimetable();
+}
+
+// ==================== 初始化 ====================
+// 尝试加载同目录下的 courses.json 和 adjust_rule.json
+async function loadLocalFiles() {
+  let loadedCourses = false, loadedRules = false;
+  try {
+    const resp = await fetch("courses.json");
+    if (resp.ok) {
+      let data = await resp.json();
+      if (data && typeof data === "object" && !Array.isArray(data) && data.courses) data = data.courses;
+      if (Array.isArray(data)) {
+        courses = data;
+        loadedCourses = true;
+        document.getElementById("coursesInfo").textContent = `已加载本地 courses.json（${courses.length} 门课）`;
+      }
+    }
+  } catch(e) {}
+  try {
+    const resp = await fetch("adjust_rule.json");
+    if (resp.ok) {
+      rules = await resp.json();
+      loadedRules = true;
+      const info = `放假${rules.holiday_dates.length}天，调休${Object.keys(rules.workday_adjust).length}天`;
+      document.getElementById("rulesInfo").textContent = `已加载本地 adjust_rule.json：${info}`;
+    }
+  } catch(e) {}
+  if (!loadedCourses || !loadedRules) {
+    const tip = document.createElement("div");
+    tip.style.cssText = "background:#fffbe6;border:1px solid #ffe58f;padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:13px;color:#613400;";
+    tip.innerHTML = "⚠️ 无法自动加载本地 JSON 文件（可能是直接双击打开导致）。请运行 <b>python app.py</b> 启动服务后访问，或手动上传 courses.json / 选课导出.csv / 粘贴调休通知文本。";
+    document.querySelector(".container").insertBefore(tip, document.querySelector(".layout"));
+  }
+  renderTimetable();
+}
+
+loadLocalFiles();
+</script>
+</body>
+</html>
