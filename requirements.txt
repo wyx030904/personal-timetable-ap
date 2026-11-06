@@ -4,8 +4,11 @@ openpyxl>=3.1
 
 # 图片识别（OCR）—— 上传通知截图自动识别
 # 环境已装好：paddlepaddle 3.3.1 + paddleocr 3.2.0（Python 3.13 可用）
-paddlepaddle>=3.3
-paddleocr>=3.2
+# 注意：paddlepaddle + paddleocr 体积过大（合计 >1GB），无法在 Vercel 等 Serverless 平台部署。
+#       如需部署到 Vercel，请保持下面两行注释状态，OCR 功能会自动降级为"粘贴通知文字"。
+#       本地运行需要 OCR 时，取消注释即可。
+# paddlepaddle>=3.3
+# paddleocr>=3.2
 
 # 备选：如果 paddle 装不上，可改用纯 onnxruntime 的 RapidOCR（代码已内置自动回退）
 # 注意 rapidocr-onnxruntime 要求 Python < 3.13
