@@ -21,9 +21,14 @@ from flask import Flask, request, jsonify, send_from_directory
 import engine
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+# Vercel 的 /var/task 是只读的，数据目录改放 /tmp
+IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+DATA_DIR = "/tmp/data" if IS_VERCEL else os.path.join(BASE_DIR, "data")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-os.makedirs(DATA_DIR, exist_ok=True)
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+except OSError:
+    pass
 
 COURSES_FILE = os.path.join(DATA_DIR, "courses.json")
 ADJUST_FILE = os.path.join(DATA_DIR, "adjustments.json")
@@ -55,8 +60,12 @@ def load_json(path, default):
 
 
 def save_json(path, data):
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except OSError:
+        # Vercel 只读文件系统或 /tmp 不可写时忽略，不影响接口返回
+        pass
 
 
 def get_courses():
@@ -127,7 +136,17 @@ app = Flask(__name__, static_folder=None)
 
 @app.route("/")
 def index():
-    return send_from_directory(STATIC_DIR, "index.html")
+    return send_from_directory(BASE_DIR, "index.html")
+
+
+@app.route("/courses.json")
+def serve_courses_json():
+    return send_from_directory(BASE_DIR, "courses.json")
+
+
+@app.route("/adjust_rule.json")
+def serve_adjust_rule_json():
+    return send_from_directory(BASE_DIR, "adjust_rule.json")
 
 
 @app.route("/static/<path:filename>")
@@ -199,6 +218,35 @@ def api_parse():
         res = engine.parse_text_auto(text, get_courses(), year)
     res["text"] = text
     return jsonify(res)
+
+
+def _ops_to_rules(ops):
+    """把 engine 返回的 ops 转成前端 index.html 期望的 {holiday_dates, workday_adjust}"""
+    holiday_dates = []
+    workday_adjust = {}
+    for op in ops or []:
+        kind = op.get("kind")
+        payload = op.get("payload", {})
+        if kind == "holiday":
+            holiday_dates.extend(payload.get("dates", []))
+        elif kind == "makeup":
+            d = payload.get("date")
+            wd = payload.get("follow_weekday")
+            if d and wd:
+                workday_adjust[d] = wd
+    return {"holiday_dates": holiday_dates, "workday_adjust": workday_adjust}
+
+
+@app.route("/api/parse_rules", methods=["POST"])
+def api_parse_rules():
+    """粘贴通知文本 → 调休规则（前端 index.html 调用）"""
+    data = request.get_json() or {}
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "请输入内容"}), 400
+    year = int(get_settings().get("year", 2026))
+    res = engine.parse_notice(text, year)
+    return jsonify(_ops_to_rules(res.get("ops", [])))
 
 
 @app.route("/api/preview", methods=["POST"])
@@ -524,6 +572,21 @@ def api_ocr_parse():
     res = engine.parse_text_auto(text, get_courses(), year)
     res.update({"text": text, "confidence": round(conf, 2)})
     return jsonify(res)
+
+
+@app.route("/api/ocr_and_parse", methods=["POST"])
+def api_ocr_and_parse():
+    """上传图片一步到位：OCR → 调休规则（前端 index.html 调用）"""
+    if "image" not in request.files:
+        return jsonify({"error": "未收到图片文件"}), 400
+    try:
+        text, conf = ocr_image(request.files["image"].read())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    year = int(get_settings().get("year", 2026))
+    res = engine.parse_notice(text, year)
+    rules = _ops_to_rules(res.get("ops", []))
+    return jsonify({"text": text, "confidence": round(conf, 2), "rules": rules})
 
 
 def _warmup_ocr():

@@ -2,10 +2,9 @@ flask>=2.3
 python-docx>=1.0
 openpyxl>=3.1
 
-# 图片识别（OCR）—— 上传通知截图自动识别
-# 环境已装好：paddlepaddle 3.3.1 + paddleocr 3.2.0（Python 3.13 可用）
-paddlepaddle>=3.3
-paddleocr>=3.2
+# 图片识别（OCR）—— 已舍弃该功能，不再需要 paddlepaddle/paddleocr
+# paddlepaddle>=3.3
+# paddleocr>=3.2
 
 # 备选：如果 paddle 装不上，可改用纯 onnxruntime 的 RapidOCR（代码已内置自动回退）
 # 注意 rapidocr-onnxruntime 要求 Python < 3.13
