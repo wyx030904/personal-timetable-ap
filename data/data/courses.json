@@ -1,0 +1,202 @@
+[
+  {
+    "course_name": "硕士生思政必修课（21班）",
+    "weekday": 1,
+    "start_section": 5,
+    "end_section": 8,
+    "week_range": "2-10",
+    "classroom": "将军路4102"
+  },
+  {
+    "course_name": "系统科学与系统工程班",
+    "weekday": 2,
+    "start_section": 3,
+    "end_section": 4,
+    "week_range": "10-16",
+    "classroom": "将军路D2110"
+  },
+  {
+    "course_name": "系统科学与系统工程班",
+    "weekday": 2,
+    "start_section": 3,
+    "end_section": 4,
+    "week_range": "17-17",
+    "classroom": "将军路D2110"
+  },
+  {
+    "course_name": "工程经济学班",
+    "weekday": 3,
+    "start_section": 1,
+    "end_section": 2,
+    "week_range": "2-9",
+    "classroom": "将军路D2107"
+  },
+  {
+    "course_name": "物流与供应链管理班",
+    "weekday": 3,
+    "start_section": 3,
+    "end_section": 4,
+    "week_range": "10-17",
+    "classroom": "将军路D2214"
+  },
+  {
+    "course_name": "机器学习与数据分析班（1班）",
+    "weekday": 3,
+    "start_section": 3,
+    "end_section": 4,
+    "week_range": "2-9",
+    "classroom": "将军路D2312"
+  },
+  {
+    "course_name": "马克思主义与社会科学方法论（2班）",
+    "weekday": 3,
+    "start_section": 5,
+    "end_section": 8,
+    "week_range": "15-18",
+    "classroom": "将军路2111"
+  },
+  {
+    "course_name": "现代管理数学方法班",
+    "weekday": 3,
+    "start_section": 9,
+    "end_section": 10,
+    "week_range": "10-12",
+    "classroom": "将军路D2214"
+  },
+  {
+    "course_name": "现代管理数学方法班",
+    "weekday": 3,
+    "start_section": 9,
+    "end_section": 10,
+    "week_range": "13-13",
+    "classroom": "将军路D2214"
+  },
+  {
+    "course_name": "现代管理数学方法班",
+    "weekday": 3,
+    "start_section": 9,
+    "end_section": 10,
+    "week_range": "3-9",
+    "classroom": "将军路D2214"
+  },
+  {
+    "course_name": "现代管理数学方法班",
+    "weekday": 3,
+    "start_section": 11,
+    "end_section": 11,
+    "week_range": "10-12",
+    "classroom": "将军路D2214"
+  },
+  {
+    "course_name": "现代管理数学方法班",
+    "weekday": 3,
+    "start_section": 11,
+    "end_section": 11,
+    "week_range": "3-9",
+    "classroom": "将军路D2214"
+  },
+  {
+    "course_name": "系统科学与系统工程班",
+    "weekday": 4,
+    "start_section": 7,
+    "end_section": 8,
+    "week_range": "10-16",
+    "classroom": "将军路D2110"
+  },
+  {
+    "course_name": "系统科学与系统工程班",
+    "weekday": 4,
+    "start_section": 7,
+    "end_section": 8,
+    "week_range": "17-17",
+    "classroom": "将军路D2110"
+  },
+  {
+    "course_name": "工程经济学班",
+    "weekday": 4,
+    "start_section": 7,
+    "end_section": 8,
+    "week_range": "2-9",
+    "classroom": "将军路D2107"
+  },
+  {
+    "course_name": "高等统计学班",
+    "weekday": 4,
+    "start_section": 9,
+    "end_section": 10,
+    "week_range": "10-11",
+    "classroom": "将军路D2112"
+  },
+  {
+    "course_name": "高等统计学班",
+    "weekday": 4,
+    "start_section": 9,
+    "end_section": 10,
+    "week_range": "12-12",
+    "classroom": "将军路D2112"
+  },
+  {
+    "course_name": "高等统计学班",
+    "weekday": 4,
+    "start_section": 9,
+    "end_section": 10,
+    "week_range": "2-9",
+    "classroom": "将军路D2112"
+  },
+  {
+    "course_name": "高等统计学班",
+    "weekday": 4,
+    "start_section": 11,
+    "end_section": 11,
+    "week_range": "10-11",
+    "classroom": "将军路D2112"
+  },
+  {
+    "course_name": "高等统计学班",
+    "weekday": 4,
+    "start_section": 11,
+    "end_section": 11,
+    "week_range": "2-9",
+    "classroom": "将军路D2112"
+  },
+  {
+    "course_name": "物流与供应链管理班",
+    "weekday": 5,
+    "start_section": 7,
+    "end_section": 8,
+    "week_range": "10-17",
+    "classroom": "将军路D2214"
+  },
+  {
+    "course_name": "机器学习与数据分析班（1班）",
+    "weekday": 5,
+    "start_section": 7,
+    "end_section": 8,
+    "week_range": "2-9",
+    "classroom": "将军路D2312"
+  },
+  {
+    "course_name": "高等运筹学班",
+    "weekday": 5,
+    "start_section": 9,
+    "end_section": 11,
+    "week_range": "11-18",
+    "classroom": "将军路D2202"
+  },
+  {
+    "course_name": "高等运筹学班",
+    "weekday": 5,
+    "start_section": 9,
+    "end_section": 11,
+    "week_range": "3-10",
+    "classroom": "将军路D2202"
+  },
+  {
+    "course_name": "风险投资与私募股权投资班",
+    "weekday": 6,
+    "start_section": 1,
+    "end_section": 4,
+    "week_range": "10-13",
+    "classroom": "将军路D2107"
+  }
+]

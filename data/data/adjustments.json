@@ -1,0 +1,95 @@
+[
+  {
+    "id": "adj-0d592953",
+    "kind": "holiday",
+    "label": "2026-09-25 ~ 2026-10-07（共13天）",
+    "payload": {
+      "dates": [
+        "2026-09-25",
+        "2026-09-26",
+        "2026-09-27",
+        "2026-09-28",
+        "2026-09-29",
+        "2026-09-30",
+        "2026-10-01",
+        "2026-10-02",
+        "2026-10-03",
+        "2026-10-04",
+        "2026-10-05",
+        "2026-10-06",
+        "2026-10-07"
+      ]
+    },
+    "source": "ocr",
+    "created_at": "2026-10-30 00:00"
+  },
+  {
+    "id": "adj-de4ca7ba",
+    "kind": "makeup",
+    "label": "2026-09-20 按周二课表上课",
+    "payload": {
+      "date": "2026-09-20",
+      "follow_date": "2026-10-06",
+      "follow_weekday": 2
+    },
+    "source": "ocr",
+    "created_at": "2026-10-30 00:00"
+  },
+  {
+    "id": "adj-ff69180d",
+    "kind": "makeup",
+    "label": "2026-10-10 按周三课表上课",
+    "payload": {
+      "date": "2026-10-10",
+      "follow_date": "2026-10-07",
+      "follow_weekday": 3
+    },
+    "source": "ocr",
+    "created_at": "2026-10-30 00:00"
+  },
+  {
+    "id": "adj-a1736a73",
+    "kind": "move",
+    "label": "「机器学习与数据分析班（1班）」第9周 周三 3-4节 → 第9周 周五 5-6节",
+    "payload": {
+      "course_name": "机器学习与数据分析班（1班）",
+      "from": {
+        "course_name": "机器学习与数据分析班（1班）",
+        "date": null,
+        "end": 4,
+        "start": 3,
+        "week": [
+          9
+        ],
+        "weekday": 3
+      },
+      "to": {
+        "date": null,
+        "end": 6,
+        "start": 5,
+        "week": [
+          9
+        ],
+        "weekday": 5
+      }
+    },
+    "source": "text",
+    "created_at": "2026-10-30 00:00"
+  },
+  {
+    "id": "adj-2c643da3",
+    "kind": "room_change",
+    "label": "「高等统计学班」上课地点改为 D2101",
+    "payload": {
+      "course_name": "高等统计学班",
+      "date": null,
+      "end": null,
+      "room": "D2101",
+      "start": null,
+      "week": null,
+      "weekday": null
+    },
+    "source": "text",
+    "created_at": "2026-10-30 00:00"
+  }
+]

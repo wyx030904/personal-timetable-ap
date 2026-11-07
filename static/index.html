@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>智能课表助手</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="static/style.css" />
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+<!-- ============ 顶部导航 ============ -->
+<header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
+  <div class="flex items-center gap-3 px-5 py-3 flex-wrap">
+    <!-- 左侧标题（整块成组放大） -->
+    <div class="brand-title shrink-0">
+      <div class="logo">课</div>
+      <div class="title-text">
+        <h1>智能课表助手</h1>
+        <p>图片识别调休通知 · 一句话修改课表</p>
+      </div>
+    </div>
+
+    <!-- 中间：周切换 -->
+    <div class="week-switch flex items-center gap-2 mx-auto bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
+      <button class="nav-btn" id="prevWeek" title="上一周">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="text-center min-w-[150px]">
+        <div class="text-sm font-bold text-slate-800" id="weekLabel">第 1 周</div>
+        <div class="text-[11px] text-slate-400" id="weekRange"></div>
+      </div>
+      <button class="nav-btn" id="nextWeek" title="下一周">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <span class="w-px h-5 bg-slate-200 mx-0.5"></span>
+      <button class="btn-today" id="btnToday">回到本周</button>
+    </div>
+
+    <!-- 右侧：学期周数 + 导入 -->
+    <div class="flex items-center gap-2 shrink-0">
+      <label class="flex items-center gap-1.5 text-[12px] text-slate-500">
+        第1周周一
+        <input type="date" id="termStart" class="border border-slate-200 rounded-md px-2 py-1 text-[12px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400" />
+      </label>
+      <label class="flex items-center gap-1.5 text-[12px] text-slate-500">
+        学期周数
+        <input type="number" id="totalWeeks" min="1" max="30" class="w-14 border border-slate-200 rounded-md px-2 py-1 text-[12px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400" />
+      </label>
+      <button class="btn-primary" id="btnImport">导入课表</button>
+      <input type="file" id="csvInput" accept=".docx,.xlsx,.xls,.ics,.txt,.csv" hidden title="支持 Word/Excel/日历/文本/CSV 格式" />
+    </div>
+  </div>
+</header>
+
+<!-- ============ 主体：左右布局 ============ -->
+<main class="layout">
+  <!-- 左侧面板 -->
+  <aside class="side">
+    <!-- 功能总标题 -->
+    <header class="side-title">
+      <h2>课表调整中心</h2>
+    </header>
+    <div class="card">
+      <!-- 标签页 -->
+      <div class="tabs">
+        <button class="tab active" data-tab="ocr">图片识别</button>
+        <button class="tab" data-tab="text">文字调课</button>
+        <button class="tab" data-tab="rules">调整记录</button>
+      </div>
+
+      <!-- 图片识别 -->
+      <div class="panel active" id="panel-ocr">
+        <label class="drop" id="dropZone">
+          <div class="flex flex-col items-center gap-1 pointer-events-none">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <b class="text-slate-700">拖拽或点击上传通知截图</b>
+            <span class="text-slate-400 text-[12px]">放假 / 调休 / 补课通知，自动识别并生成调整</span>
+          </div>
+          <input type="file" id="imgInput" accept="image/*" />
+        </label>
+        <div class="chips">
+          <button class="chip" id="btnSample">填入示例通知</button>
+          <button class="chip" id="btnClearOcr">清空</button>
+        </div>
+        <textarea class="textin" id="ocrText" placeholder="识别出的文字会显示在这里，可直接修改后再解析"></textarea>
+        <div class="actions">
+          <button class="btn-primary flex-1 justify-center" id="btnOcrParse">识别并解析</button>
+        </div>
+        <p class="hint" id="ocrHint">图片识别需要 PaddleOCR；未安装时可直接粘贴通知文字。</p>
+        <div class="op-list" id="ocrOps"></div>
+      </div>
+
+      <!-- 文字调课 -->
+      <div class="panel" id="panel-text">
+        <textarea class="textin small" id="cmdText" placeholder="例如：把周三3-4节的机器学习调到周五5-6节"></textarea>
+        <div class="chips">
+          <button class="chip" data-demo="10月1日到10月7日放假">10月1日到10月7日放假</button>
+          <button class="chip" data-demo="9月20日按10月6日课表上课">9月20日按10月6日课表上课</button>
+          <button class="chip" data-demo="第5周周三高等运筹学停课">第5周周三高等运筹学停课</button>
+          <button class="chip" data-demo="把周三3-4节的机器学习调到周五5-6节">把周三3-4节的机器学习调到周五5-6节</button>
+          <button class="chip" data-demo="高等统计学教室改到将军路D2101">高等统计学教室改到D2101</button>
+        </div>
+        <div class="actions">
+          <button class="btn-primary" id="btnParse">解析指令</button>
+          <button class="btn" id="btnPreview" disabled>预览变更</button>
+          <button class="btn" id="btnApply" disabled>确认应用</button>
+        </div>
+        <p class="hint" id="cmdHint">支持放假、调休补课、停课、调课、换教室五类指令。</p>
+        <div class="op-list" id="cmdOps"></div>
+      </div>
+
+      <!-- 调整记录 -->
+      <div class="panel" id="panel-rules">
+        <div id="ruleList"></div>
+        <div class="actions">
+          <button class="btn-danger" id="btnClearRules">清空全部调整</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 帮助说明折叠面板 -->
+    <div class="card">
+      <button class="help-head" id="helpToggle">
+        <span class="font-semibold text-slate-700">使用说明</span>
+        <svg class="help-arrow transition-transform" id="helpArrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="help-body" id="helpBody">
+        <p><b>图片识别</b>：上传学校放假/调休通知截图 → 自动 OCR 识别 → 抽取「哪几天放假、哪天补哪天的课」→ 预览后一键应用到课表。</p>
+        <p><b>文字调课</b>：直接用中文写一句指令，系统解析成结构化调整，先给你看变更预览，确认后才写入。</p>
+        <p><b>调整记录</b>：查看所有已应用的调整，可逐条删除或全部清空。</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 右侧课表 -->
+  <section class="main-area">
+    <div class="card">
+      <div class="weekbar">
+        <div class="flex items-center gap-2">
+          <span class="pill brand" id="pillCount">0 节课</span>
+          <button class="btn sm" id="btnSectionTime" title="自定义每节课的起止时间">节次时间</button>
+        </div>
+        <div class="spacer"></div>
+        <!-- 状态图例：与「X节课」统计同一行，靠右对齐 -->
+        <div class="legend-status" id="legendStatus"></div>
+        <span class="text-[12px] text-slate-400" id="todayHint"></span>
+      </div>
+      <div id="weekAlert"></div>
+      <div class="grid-wrap">
+        <div class="timetable" id="timetable"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 变更预览弹窗 -->
+<div class="mask" id="mask">
+  <div class="modal">
+    <header>
+      <h3 id="modalTitle">变更预览</h3>
+      <button class="btn sm" id="modalClose">关闭</button>
+    </header>
+    <div class="content" id="modalBody"></div>
+    <footer>
+      <button class="btn" id="modalCancel">取消</button>
+      <button class="btn-primary" id="modalOk">确认应用</button>
+    </footer>
+  </div>
+</div>
+
+<!-- 课程详情弹窗 -->
+<div class="mask" id="courseMask">
+  <div class="modal course-detail">
+    <header>
+      <h3 id="courseModalTitle">课程详情</h3>
+      <button class="btn sm" id="courseModalClose">关闭</button>
+    </header>
+    <div class="content" id="courseModalBody"></div>
+  </div>
+</div>
+
+<!-- 自定义节次时间表弹窗 -->
+<div class="mask" id="sectionTimeMask">
+  <div class="modal">
+    <header>
+      <h3>自定义节次时间表</h3>
+      <button class="btn sm" id="sectionTimeClose">关闭</button>
+    </header>
+    <div class="content" id="sectionTimeModalBody"></div>
+    <footer>
+      <button class="btn" id="sectionTimeCancel">取消</button>
+      <button class="btn-primary" id="sectionTimeSave">保存</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="static/app.js"></script>
+</body>
+</html>

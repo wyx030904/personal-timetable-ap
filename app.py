@@ -27,8 +27,9 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 
 def _ensure_writable_data_dir():
-    """若 DATA_DIR 不可写（如 Vercel 只读文件系统），自动回退到 /tmp/data"""
+    """若 DATA_DIR 不可写（如 Vercel 只读文件系统），自动回退到系统临时目录"""
     global DATA_DIR, COURSES_FILE, ADJUST_FILE, SETTINGS_FILE
+    import tempfile
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
         # 尝试写一个临时文件验证可写
@@ -37,7 +38,7 @@ def _ensure_writable_data_dir():
             f.write("ok")
         os.remove(_probe)
     except Exception:
-        DATA_DIR = "/tmp/data"
+        DATA_DIR = os.path.join(tempfile.gettempdir(), "timetable_data")
         os.makedirs(DATA_DIR, exist_ok=True)
     finally:
         COURSES_FILE = os.path.join(DATA_DIR, "courses.json")
@@ -156,45 +157,13 @@ def diff_ops(ops, courses=None, adjustments=None, settings=None):
     return changes
 
 
-# ────────────────────────── 规则格式转换 ──────────────────────────
-_WEEKDAY_NAMES = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
-
-
-def _ops_to_rules(ops):
-    """把 engine 的 ops（holiday/makeup）转成前端需要的 {holiday_dates, workday_adjust}"""
-    holiday_dates = []
-    workday_adjust = {}
-    for op in ops:
-        kind = op.get("kind")
-        payload = op.get("payload", {})
-        if kind == "holiday":
-            holiday_dates.extend(payload.get("dates", []))
-        elif kind == "makeup":
-            d = payload.get("date")
-            wd = payload.get("follow_weekday")
-            if d and wd:
-                workday_adjust[d] = _WEEKDAY_NAMES[wd - 1]
-    return {"holiday_dates": holiday_dates, "workday_adjust": workday_adjust, "course_adjust": []}
-
-
 # ────────────────────────── Flask ──────────────────────────
 app = Flask(__name__, static_folder=None)
 
 
 @app.route("/")
 def index():
-    # index.html 放在项目根目录（不在 static/ 下），直接从 BASE_DIR 服务
-    return send_from_directory(BASE_DIR, "index.html")
-
-
-@app.route("/courses.json")
-def serve_courses_json():
-    return send_from_directory(BASE_DIR, "courses.json")
-
-
-@app.route("/adjust_rule.json")
-def serve_adjust_rule_json():
-    return send_from_directory(BASE_DIR, "adjust_rule.json")
+    return send_from_directory(STATIC_DIR, "index.html")
 
 
 @app.route("/static/<path:filename>")
@@ -266,18 +235,6 @@ def api_parse():
         res = engine.parse_text_auto(text, get_courses(), year)
     res["text"] = text
     return jsonify(res)
-
-
-@app.route("/api/parse_rules", methods=["POST"])
-def api_parse_rules():
-    """文字 → 前端规则格式 {holiday_dates, workday_adjust}（前端「粘贴通知文本」按钮调用）"""
-    data = request.get_json() or {}
-    text = (data.get("text") or "").strip()
-    if not text:
-        return jsonify({"error": "请输入内容"}), 400
-    year = int(get_settings().get("year", 2026))
-    res = engine.parse_notice(text, year)
-    return jsonify(_ops_to_rules(res.get("ops", [])))
 
 
 @app.route("/api/preview", methods=["POST"])
@@ -603,22 +560,6 @@ def api_ocr_parse():
     res = engine.parse_text_auto(text, get_courses(), year)
     res.update({"text": text, "confidence": round(conf, 2)})
     return jsonify(res)
-
-
-@app.route("/api/ocr_and_parse", methods=["POST"])
-def api_ocr_and_parse():
-    """上传图片一步到位：OCR → 规则（前端「上传调休通知截图」按钮调用）。
-    Vercel 上未装 paddle，OCR 会失败并返回错误，但不影响其他功能。"""
-    if "image" not in request.files:
-        return jsonify({"error": "未收到图片文件"}), 400
-    try:
-        text, conf = ocr_image(request.files["image"].read())
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    year = int(get_settings().get("year", 2026))
-    res = engine.parse_notice(text, year)
-    rules = _ops_to_rules(res.get("ops", []))
-    return jsonify({"text": text, "confidence": round(conf, 2), "rules": rules})
 
 
 def _warmup_ocr():
