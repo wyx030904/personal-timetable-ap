@@ -21,18 +21,44 @@ from flask import Flask, request, jsonify, send_from_directory
 import engine
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Vercel 的 /var/task 是只读的，数据目录改放 /tmp
-IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
-DATA_DIR = "/tmp/data" if IS_VERCEL else os.path.join(BASE_DIR, "data")
+# Vercel Serverless 函数的文件系统只读（仅 /tmp 可写），通过环境变量切换数据目录
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-try:
-    os.makedirs(DATA_DIR, exist_ok=True)
-except OSError:
-    pass
 
-COURSES_FILE = os.path.join(DATA_DIR, "courses.json")
-ADJUST_FILE = os.path.join(DATA_DIR, "adjustments.json")
-SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
+
+def _ensure_writable_data_dir():
+    """若 DATA_DIR 不可写（如 Vercel 只读文件系统），自动回退到 /tmp/data"""
+    global DATA_DIR, COURSES_FILE, ADJUST_FILE, SETTINGS_FILE
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        # 尝试写一个临时文件验证可写
+        _probe = os.path.join(DATA_DIR, ".write_test")
+        with open(_probe, "w") as f:
+            f.write("ok")
+        os.remove(_probe)
+    except Exception:
+        DATA_DIR = "/tmp/data"
+        os.makedirs(DATA_DIR, exist_ok=True)
+    finally:
+        COURSES_FILE = os.path.join(DATA_DIR, "courses.json")
+        ADJUST_FILE = os.path.join(DATA_DIR, "adjustments.json")
+        SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
+
+
+_ensure_writable_data_dir()
+
+# 若 DATA_DIR 指向可写目录（如 /tmp），把打包时的初始数据复制过去，保证首次启动有课表数据
+_SEED_DIR = os.path.join(BASE_DIR, "data")
+if os.path.isdir(_SEED_DIR) and os.path.abspath(_SEED_DIR) != os.path.abspath(DATA_DIR):
+    import shutil
+    for name in ("courses.json", "adjustments.json", "settings.json"):
+        src = os.path.join(_SEED_DIR, name)
+        dst = os.path.join(DATA_DIR, name)
+        if os.path.isfile(src) and not os.path.isfile(dst):
+            try:
+                shutil.copy2(src, dst)
+            except Exception:
+                pass
 
 # 默认节次时间表（12节，若导入文件未含时间则用此兜底）
 DEFAULT_SECTION_TIMES = [
@@ -63,8 +89,8 @@ def save_json(path, data):
     try:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-    except OSError:
-        # Vercel 只读文件系统或 /tmp 不可写时忽略，不影响接口返回
+    except Exception:
+        # Vercel /tmp 偶尔不可写时静默失败，不影响接口返回
         pass
 
 
@@ -130,12 +156,34 @@ def diff_ops(ops, courses=None, adjustments=None, settings=None):
     return changes
 
 
+# ────────────────────────── 规则格式转换 ──────────────────────────
+_WEEKDAY_NAMES = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
+
+def _ops_to_rules(ops):
+    """把 engine 的 ops（holiday/makeup）转成前端需要的 {holiday_dates, workday_adjust}"""
+    holiday_dates = []
+    workday_adjust = {}
+    for op in ops:
+        kind = op.get("kind")
+        payload = op.get("payload", {})
+        if kind == "holiday":
+            holiday_dates.extend(payload.get("dates", []))
+        elif kind == "makeup":
+            d = payload.get("date")
+            wd = payload.get("follow_weekday")
+            if d and wd:
+                workday_adjust[d] = _WEEKDAY_NAMES[wd - 1]
+    return {"holiday_dates": holiday_dates, "workday_adjust": workday_adjust, "course_adjust": []}
+
+
 # ────────────────────────── Flask ──────────────────────────
 app = Flask(__name__, static_folder=None)
 
 
 @app.route("/")
 def index():
+    # index.html 放在项目根目录（不在 static/ 下），直接从 BASE_DIR 服务
     return send_from_directory(BASE_DIR, "index.html")
 
 
@@ -220,26 +268,9 @@ def api_parse():
     return jsonify(res)
 
 
-def _ops_to_rules(ops):
-    """把 engine 返回的 ops 转成前端 index.html 期望的 {holiday_dates, workday_adjust}"""
-    holiday_dates = []
-    workday_adjust = {}
-    for op in ops or []:
-        kind = op.get("kind")
-        payload = op.get("payload", {})
-        if kind == "holiday":
-            holiday_dates.extend(payload.get("dates", []))
-        elif kind == "makeup":
-            d = payload.get("date")
-            wd = payload.get("follow_weekday")
-            if d and wd:
-                workday_adjust[d] = wd
-    return {"holiday_dates": holiday_dates, "workday_adjust": workday_adjust}
-
-
 @app.route("/api/parse_rules", methods=["POST"])
 def api_parse_rules():
-    """粘贴通知文本 → 调休规则（前端 index.html 调用）"""
+    """文字 → 前端规则格式 {holiday_dates, workday_adjust}（前端「粘贴通知文本」按钮调用）"""
     data = request.get_json() or {}
     text = (data.get("text") or "").strip()
     if not text:
@@ -576,7 +607,8 @@ def api_ocr_parse():
 
 @app.route("/api/ocr_and_parse", methods=["POST"])
 def api_ocr_and_parse():
-    """上传图片一步到位：OCR → 调休规则（前端 index.html 调用）"""
+    """上传图片一步到位：OCR → 规则（前端「上传调休通知截图」按钮调用）。
+    Vercel 上未装 paddle，OCR 会失败并返回错误，但不影响其他功能。"""
     if "image" not in request.files:
         return jsonify({"error": "未收到图片文件"}), 400
     try:
